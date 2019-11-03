@@ -10,18 +10,20 @@ namespace Veldrid
         /// <summary>
         /// The number of bytes in between successive elements in the <see cref="DeviceBuffer"/>.
         /// </summary>
-        public uint Stride;
+        public uint Stride { get; set; }
+
         /// <summary>
         /// An array of <see cref="VertexElementDescription"/> objects, each describing a single element of vertex data.
         /// </summary>
-        public VertexElementDescription[] Elements;
+        public VertexElementDescription[] Elements { get; set; }
+
         /// <summary>
         /// A value controlling how often data for instances is advanced for this layout. For per-vertex elements, this value
         /// should be 0.
         /// For example, an InstanceStepRate of 3 indicates that 3 instances will be drawn with the same value for this layout. The
         /// next 3 instances will be drawn with the next value, and so on.
         /// </summary>
-        public uint InstanceStepRate;
+        public uint InstanceStepRate { get; set; }
 
         /// <summary>
         /// Constructs a new VertexLayoutDescription.
@@ -40,12 +42,12 @@ namespace Veldrid
         /// Constructs a new VertexLayoutDescription.
         /// </summary>
         /// <param name="stride">The number of bytes in between successive elements in the <see cref="DeviceBuffer"/>.</param>
-        /// <param name="elements">An array of <see cref="VertexElementDescription"/> objects, each describing a single element
-        /// of vertex data.</param>
         /// <param name="instanceStepRate">A value controlling how often data for instances is advanced for this element. For
         /// per-vertex elements, this value should be 0.
         /// For example, an InstanceStepRate of 3 indicates that 3 instances will be drawn with the same value for this element.
         /// The next 3 instances will be drawn with the next value for this element, and so on.</param>
+        /// <param name="elements">An array of <see cref="VertexElementDescription"/> objects, each describing a single element
+        /// of vertex data.</param>
         public VertexLayoutDescription(uint stride, uint instanceStepRate, params VertexElementDescription[] elements)
         {
             Stride = stride;

@@ -533,6 +533,11 @@ namespace Veldrid.OpenGLBinding
         public static void glAttachShader(uint program, uint shader) => p_glAttachShader(program, shader);
 
         [UnmanagedFunctionPointer(CallConv)]
+        private delegate void glDetachShader_t(uint program, uint shader);
+        private static glDetachShader_t p_glDetachShader;
+        public static void glDetachShader(uint program, uint shader) => p_glDetachShader(program, shader);
+
+        [UnmanagedFunctionPointer(CallConv)]
         private delegate void glBindAttribLocation_t(uint program, uint index, byte* name);
         private static glBindAttribLocation_t p_glBindAttribLocation;
         public static void glBindAttribLocation(uint program, uint index, byte* name)
@@ -1745,6 +1750,7 @@ namespace Veldrid.OpenGLBinding
             LoadFunction("glCullFace", out p_glCullFace);
             LoadFunction("glCreateProgram", out p_glCreateProgram);
             LoadFunction("glAttachShader", out p_glAttachShader);
+            LoadFunction("glDetachShader", out p_glDetachShader);
             LoadFunction("glBindAttribLocation", out p_glBindAttribLocation);
             LoadFunction("glLinkProgram", out p_glLinkProgram);
             LoadFunction("glGetProgramiv", out p_glGetProgramiv);

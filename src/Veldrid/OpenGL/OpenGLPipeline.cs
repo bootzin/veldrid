@@ -132,7 +132,7 @@ namespace Veldrid.OpenGL
                     glBindAttribLocation(_program, slot, elementNamePtr);
                     CheckLastError();
 
-                    slot += 1;
+                    slot++;
                 }
             }
 
@@ -176,6 +176,13 @@ namespace Veldrid.OpenGL
                 CheckLastError();
                 string log = Encoding.UTF8.GetString(infoLog, (int)bytesWritten);
                 throw new VeldridException($"Error linking GL program: {log}");
+            }
+
+            foreach (Shader stage in GraphicsShaders)
+            {
+                OpenGLShader glShader = Util.AssertSubtype<Shader, OpenGLShader>(stage);
+                glDetachShader(_program, glShader.Shader);
+                CheckLastError();
             }
 
             ProcessResourceSetLayouts(ResourceLayouts);

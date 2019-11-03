@@ -10,21 +10,24 @@ namespace Veldrid
         /// <summary>
         /// The name of the element.
         /// </summary>
-        public string Name;
+        public string Name { get; }
+
         /// <summary>
         /// The semantic type of the element.
         /// NOTE: When using Veldrid.SPIRV, all vertex elements will use
         /// <see cref="VertexElementSemantic.TextureCoordinate"/>.
         /// </summary>
-        public VertexElementSemantic Semantic;
+        public VertexElementSemantic Semantic { get; }
+
         /// <summary>
         /// The format of the element.
         /// </summary>
-        public VertexElementFormat Format;
+        public VertexElementFormat Format { get; }
+
         /// <summary>
         /// The offset in bytes from the beginning of the vertex.
         /// </summary>
-        public uint Offset;
+        public uint Offset { get; }
 
         /// <summary>
         /// Constructs a new VertexElementDescription describing a per-vertex element.
@@ -33,20 +36,6 @@ namespace Veldrid
         /// <param name="semantic">The semantic type of the element.</param>
         /// <param name="format">The format of the element.</param>
         public VertexElementDescription(string name, VertexElementSemantic semantic, VertexElementFormat format)
-            : this(name, format, semantic)
-        {
-        }
-
-        /// <summary>
-        /// Constructs a new VertexElementDescription.
-        /// </summary>
-        /// <param name="name">The name of the element.</param>
-        /// <param name="semantic">The semantic type of the element.</param>
-        /// <param name="format">The format of the element.</param>
-        public VertexElementDescription(
-            string name,
-            VertexElementFormat format,
-            VertexElementSemantic semantic)
         {
             Name = name;
             Format = format;

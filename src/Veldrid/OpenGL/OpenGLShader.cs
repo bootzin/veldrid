@@ -1,8 +1,7 @@
-﻿using static Veldrid.OpenGLBinding.OpenGLNative;
-using static Veldrid.OpenGL.OpenGLUtil;
+﻿using System.Text;
 using Veldrid.OpenGLBinding;
-using System.Text;
-using System;
+using static Veldrid.OpenGL.OpenGLUtil;
+using static Veldrid.OpenGLBinding.OpenGLNative;
 
 namespace Veldrid.OpenGL
 {
@@ -17,11 +16,9 @@ namespace Veldrid.OpenGL
         private bool _nameChanged;
         public override string Name { get => _name; set { _name = value; _nameChanged = true; } }
 
-        private uint _shader;
+		public uint Shader { get; private set; }
 
-        public uint Shader => _shader;
-
-        public OpenGLShader(OpenGLGraphicsDevice gd, ShaderStages stage, StagingBlock stagingBlock, string entryPoint)
+		public OpenGLShader(OpenGLGraphicsDevice gd, ShaderStages stage, StagingBlock stagingBlock, string entryPoint)
             : base(stage, entryPoint)
         {
 #if VALIDATE_USAGE
@@ -55,42 +52,42 @@ namespace Veldrid.OpenGL
                 _nameChanged = false;
                 if (_gd.Extensions.KHR_Debug)
                 {
-                    SetObjectLabel(ObjectLabelIdentifier.Shader, _shader, _name);
+                    SetObjectLabel(ObjectLabelIdentifier.Shader, Shader, _name);
                 }
             }
         }
 
         private void CreateGLResources()
         {
-            _shader = glCreateShader(_shaderType);
+            Shader = glCreateShader(_shaderType);
             CheckLastError();
 
             byte* textPtr = (byte*)_stagingBlock.Data;
             int length = (int)_stagingBlock.SizeInBytes;
             byte** textsPtr = &textPtr;
 
-            glShaderSource(_shader, 1, textsPtr, &length);
+            glShaderSource(Shader, 1, textsPtr, &length);
             CheckLastError();
 
-            glCompileShader(_shader);
+            glCompileShader(Shader);
             CheckLastError();
 
             int compileStatus;
-            glGetShaderiv(_shader, ShaderParameter.CompileStatus, &compileStatus);
+            glGetShaderiv(Shader, ShaderParameter.CompileStatus, &compileStatus);
             CheckLastError();
 
             if (compileStatus != 1)
             {
                 int infoLogLength;
-                glGetShaderiv(_shader, ShaderParameter.InfoLogLength, &infoLogLength);
+                glGetShaderiv(Shader, ShaderParameter.InfoLogLength, &infoLogLength);
                 CheckLastError();
 
                 byte* infoLog = stackalloc byte[infoLogLength];
                 uint returnedInfoLength;
-                glGetShaderInfoLog(_shader, (uint)infoLogLength, &returnedInfoLength, infoLog);
+                glGetShaderInfoLog(Shader, (uint)infoLogLength, &returnedInfoLength, infoLog);
                 CheckLastError();
 
-                string message = infoLog != null
+                string message = infoLog != default
                     ? Encoding.UTF8.GetString(infoLog, (int)returnedInfoLength)
                     : "<null>";
 
@@ -113,7 +110,7 @@ namespace Veldrid.OpenGL
                 _disposed = true;
                 if (Created)
                 {
-                    glDeleteShader(_shader);
+                    glDeleteShader(Shader);
                     CheckLastError();
                 }
                 else

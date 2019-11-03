@@ -1216,7 +1216,7 @@ namespace Veldrid.OpenGL
                         break;
                         case WorkItemType.SetSyncToVerticalBlank:
                         {
-                            bool value = workItem.UInt0 == 1 ? true : false;
+                            bool value = workItem.UInt0 == 1;
                             _gd._setSyncToVBlank(value);
                         }
                         break;

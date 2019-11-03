@@ -64,7 +64,7 @@ namespace Veldrid.OpenGL
             glClearColor(color.R, color.G, color.B, color.A);
             CheckLastError();
 
-            if (_graphicsPipeline != null && _graphicsPipeline.RasterizerState.ScissorTestEnabled)
+            if (_graphicsPipeline?.RasterizerState.ScissorTestEnabled == true)
             {
                 glDisable(EnableCap.ScissorTest);
                 CheckLastError();
@@ -73,7 +73,7 @@ namespace Veldrid.OpenGL
             glClear(ClearBufferMask.ColorBufferBit);
             CheckLastError();
 
-            if (_graphicsPipeline != null && _graphicsPipeline.RasterizerState.ScissorTestEnabled)
+            if (_graphicsPipeline?.RasterizerState.ScissorTestEnabled == true)
             {
                 glEnable(EnableCap.ScissorTest);
             }
@@ -87,7 +87,7 @@ namespace Veldrid.OpenGL
             glClearStencil(stencil);
             CheckLastError();
 
-            if (_graphicsPipeline != null && _graphicsPipeline.RasterizerState.ScissorTestEnabled)
+            if (_graphicsPipeline?.RasterizerState.ScissorTestEnabled == true)
             {
                 glDisable(EnableCap.ScissorTest);
                 CheckLastError();
@@ -97,7 +97,7 @@ namespace Veldrid.OpenGL
             glClear(ClearBufferMask.DepthBufferBit | ClearBufferMask.StencilBufferBit);
             CheckLastError();
 
-            if (_graphicsPipeline != null && _graphicsPipeline.RasterizerState.ScissorTestEnabled)
+            if (_graphicsPipeline?.RasterizerState.ScissorTestEnabled == true)
             {
                 glEnable(EnableCap.ScissorTest);
             }
@@ -393,7 +393,7 @@ namespace Veldrid.OpenGL
             }
             else if (fb is OpenGLSwapchainFramebuffer swapchainFB)
             {
-                if ((_backend == GraphicsBackend.OpenGL || _extensions.EXT_sRGBWriteControl))
+                if (_backend == GraphicsBackend.OpenGL || _extensions.EXT_sRGBWriteControl)
                 {
                     if (swapchainFB.DisableSrgbConversion)
                     {
@@ -814,7 +814,7 @@ namespace Veldrid.OpenGL
                 if (glResourceSet.Layout.IsDynamicBuffer(element))
                 {
                     bufferOffset = brsi.Offsets.Get(dynamicOffsetIndex);
-                    dynamicOffsetIndex += 1;
+                    dynamicOffsetIndex++;
                 }
 
                 switch (kind)
@@ -846,7 +846,7 @@ namespace Veldrid.OpenGL
                                 (UIntPtr)range.SizeInBytes);
                             CheckLastError();
 
-                            ubOffset += 1;
+                            ubOffset++;
                         }
                         break;
                     }
@@ -887,7 +887,7 @@ namespace Veldrid.OpenGL
                                     (UIntPtr)range.SizeInBytes);
                                 CheckLastError();
                             }
-                            ssboOffset += 1;
+                            ssboOffset++;
                         }
                         break;
                     }
@@ -1090,7 +1090,7 @@ namespace Veldrid.OpenGL
             }
             else
             {
-                BufferTarget bufferTarget = BufferTarget.CopyWriteBuffer;
+                const BufferTarget bufferTarget = BufferTarget.CopyWriteBuffer;
                 glBindBuffer(bufferTarget, glBuffer.Buffer);
                 CheckLastError();
                 glBufferSubData(

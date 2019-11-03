@@ -9,8 +9,8 @@ namespace Veldrid.OpenGL
     internal unsafe class OpenGLBuffer : DeviceBuffer, OpenGLDeferredResource
     {
         private readonly OpenGLGraphicsDevice _gd;
+        private readonly bool _dynamic;
         private uint _buffer;
-        private bool _dynamic;
 
         private string _name;
         private bool _nameChanged;
