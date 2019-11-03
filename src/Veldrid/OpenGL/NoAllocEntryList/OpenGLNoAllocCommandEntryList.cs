@@ -188,7 +188,7 @@ namespace Veldrid.OpenGL.NoAllocEntryList
             {
                 *terminatorWritePtr = 0;
             }
-            _totalEntries += 1;
+            _totalEntries++;
         }
 
         public void ExecuteAll(OpenGLCommandExecutor executor)
@@ -215,7 +215,7 @@ namespace Veldrid.OpenGL.NoAllocEntryList
                 }
 
                 Debug.Assert(id != 0);
-                currentOffset += 1;
+                currentOffset++;
                 byte* entryBasePtr = block.BasePtr + currentOffset;
                 switch (id)
                 {

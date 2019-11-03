@@ -60,11 +60,10 @@ namespace Veldrid.OpenGL
                 CheckLastError();
             }
 
-            RgbaFloat color = clearColor;
-            glClearColor(color.R, color.G, color.B, color.A);
+            glClearColor(clearColor.R, clearColor.G, clearColor.B, clearColor.A);
             CheckLastError();
 
-            if (_graphicsPipeline != null && _graphicsPipeline.RasterizerState.ScissorTestEnabled)
+            if (_graphicsPipeline?.RasterizerState.ScissorTestEnabled == true)
             {
                 glDisable(EnableCap.ScissorTest);
                 CheckLastError();
@@ -73,7 +72,7 @@ namespace Veldrid.OpenGL
             glClear(ClearBufferMask.ColorBufferBit);
             CheckLastError();
 
-            if (_graphicsPipeline != null && _graphicsPipeline.RasterizerState.ScissorTestEnabled)
+            if (_graphicsPipeline?.RasterizerState.ScissorTestEnabled == true)
             {
                 glEnable(EnableCap.ScissorTest);
             }
@@ -252,7 +251,7 @@ namespace Veldrid.OpenGL
             {
                 BoundResourceSetInfo brsi = graphics ? _graphicsResourceSets[slot] : _computeResourceSets[slot];
                 OpenGLResourceSet glSet = Util.AssertSubtype<ResourceSet, OpenGLResourceSet>(brsi.Set);
-                ResourceLayoutElementDescription[] layoutElements = glSet.Layout.Elements;
+                Span<ResourceLayoutElementDescription> layoutElements = glSet.Layout.Elements;
                 bool isNew = graphics ? _newGraphicsResourceSets[slot] : _newComputeResourceSets[slot];
 
                 ActivateResourceSet(slot, graphics, brsi, layoutElements, isNew);
@@ -264,7 +263,7 @@ namespace Veldrid.OpenGL
         private void FlushVertexLayouts()
         {
             uint totalSlotsBound = 0;
-            VertexLayoutDescription[] layouts = _graphicsPipeline.VertexLayouts;
+            Span<VertexLayoutDescription> layouts = _graphicsPipeline.VertexLayouts;
             for (int i = 0; i < layouts.Length; i++)
             {
                 VertexLayoutDescription input = layouts[i];
@@ -393,7 +392,7 @@ namespace Veldrid.OpenGL
             }
             else if (fb is OpenGLSwapchainFramebuffer swapchainFB)
             {
-                if ((_backend == GraphicsBackend.OpenGL || _extensions.EXT_sRGBWriteControl))
+                if (_backend == GraphicsBackend.OpenGL || _extensions.EXT_sRGBWriteControl)
                 {
                     if (swapchainFB.DisableSrgbConversion)
                     {
@@ -678,29 +677,29 @@ namespace Veldrid.OpenGL
             }
         }
 
-        public void PushDebugGroup(string name)
+        public void PushDebugGroup(ReadOnlySpan<char> name)
         {
             if (_extensions.KHR_Debug)
             {
                 int byteCount = Encoding.UTF8.GetByteCount(name);
-                byte* utf8Ptr = stackalloc byte[byteCount];
-                fixed (char* namePtr = name)
+                Span<byte> utf8Ptr = stackalloc byte[byteCount];
+                Encoding.UTF8.GetBytes(name, utf8Ptr);
+                fixed (byte* bytePtr = utf8Ptr)
                 {
-                    Encoding.UTF8.GetBytes(namePtr, name.Length, utf8Ptr, byteCount);
+                    glPushDebugGroup(DebugSource.DebugSourceApplication, 0, (uint)byteCount, bytePtr);
+                    CheckLastError();
                 }
-                glPushDebugGroup(DebugSource.DebugSourceApplication, 0, (uint)byteCount, utf8Ptr);
-                CheckLastError();
             }
             else if (_extensions.EXT_DebugMarker)
             {
                 int byteCount = Encoding.UTF8.GetByteCount(name);
-                byte* utf8Ptr = stackalloc byte[byteCount];
-                fixed (char* namePtr = name)
+                Span<byte> utf8Ptr = stackalloc byte[byteCount];
+                Encoding.UTF8.GetBytes(name, utf8Ptr);
+                fixed (byte* bytePtr = utf8Ptr)
                 {
-                    Encoding.UTF8.GetBytes(namePtr, name.Length, utf8Ptr, byteCount);
+                    glPushGroupMarker((uint)byteCount, bytePtr);
+                    CheckLastError();
                 }
-                glPushGroupMarker((uint)byteCount, utf8Ptr);
-                CheckLastError();
             }
         }
 
@@ -718,37 +717,36 @@ namespace Veldrid.OpenGL
             }
         }
 
-        public void InsertDebugMarker(string name)
+        public void InsertDebugMarker(ReadOnlySpan<char> name)
         {
             if (_extensions.KHR_Debug)
             {
                 int byteCount = Encoding.UTF8.GetByteCount(name);
-                byte* utf8Ptr = stackalloc byte[byteCount];
-                fixed (char* namePtr = name)
+                Span<byte> utf8Ptr = stackalloc byte[byteCount];
+                Encoding.UTF8.GetBytes(name, utf8Ptr);
+                fixed (byte* bytePtr = utf8Ptr)
                 {
-                    Encoding.UTF8.GetBytes(namePtr, name.Length, utf8Ptr, byteCount);
+                    glDebugMessageInsert(
+                        DebugSource.DebugSourceApplication,
+                        DebugType.DebugTypeMarker,
+                        0,
+                        DebugSeverity.DebugSeverityNotification,
+                        (uint)byteCount,
+                        bytePtr);
+                    CheckLastError();
                 }
 
-                glDebugMessageInsert(
-                    DebugSource.DebugSourceApplication,
-                    DebugType.DebugTypeMarker,
-                    0,
-                    DebugSeverity.DebugSeverityNotification,
-                    (uint)byteCount,
-                    utf8Ptr);
-                CheckLastError();
             }
             else if (_extensions.EXT_DebugMarker)
             {
                 int byteCount = Encoding.UTF8.GetByteCount(name);
-                byte* utf8Ptr = stackalloc byte[byteCount];
-                fixed (char* namePtr = name)
+                Span<byte> utf8Ptr = stackalloc byte[byteCount];
+                Encoding.UTF8.GetBytes(name, utf8Ptr);
+                fixed (byte* bytePtr = utf8Ptr)
                 {
-                    Encoding.UTF8.GetBytes(namePtr, name.Length, utf8Ptr, byteCount);
+                    glInsertEventMarker((uint)byteCount, bytePtr);
+                    CheckLastError();
                 }
-
-                glInsertEventMarker((uint)byteCount, utf8Ptr);
-                CheckLastError();
             }
         }
 
@@ -794,7 +792,7 @@ namespace Veldrid.OpenGL
             uint slot,
             bool graphics,
             BoundResourceSetInfo brsi,
-            ResourceLayoutElementDescription[] layoutElements,
+            Span<ResourceLayoutElementDescription> layoutElements,
             bool isNew)
         {
             OpenGLResourceSet glResourceSet = Util.AssertSubtype<ResourceSet, OpenGLResourceSet>(brsi.Set);
@@ -807,14 +805,14 @@ namespace Veldrid.OpenGL
             uint dynamicOffsetIndex = 0;
             for (uint element = 0; element < glResourceSet.Resources.Length; element++)
             {
-                ResourceKind kind = layoutElements[element].Kind;
+                ResourceKind kind = layoutElements[(int)element].Kind;
                 BindableResource resource = glResourceSet.Resources[(int)element];
 
                 uint bufferOffset = 0;
                 if (glResourceSet.Layout.IsDynamicBuffer(element))
                 {
                     bufferOffset = brsi.Offsets.Get(dynamicOffsetIndex);
-                    dynamicOffsetIndex += 1;
+                    dynamicOffsetIndex ++;
                 }
 
                 switch (kind)
@@ -846,7 +844,7 @@ namespace Veldrid.OpenGL
                                 (UIntPtr)range.SizeInBytes);
                             CheckLastError();
 
-                            ubOffset += 1;
+                            ubOffset ++;
                         }
                         break;
                     }
@@ -887,7 +885,7 @@ namespace Veldrid.OpenGL
                                     (UIntPtr)range.SizeInBytes);
                                 CheckLastError();
                             }
-                            ssboOffset += 1;
+                            ssboOffset ++;
                         }
                         break;
                     }
@@ -1090,11 +1088,10 @@ namespace Veldrid.OpenGL
             }
             else
             {
-                BufferTarget bufferTarget = BufferTarget.CopyWriteBuffer;
-                glBindBuffer(bufferTarget, glBuffer.Buffer);
+                glBindBuffer(BufferTarget.CopyWriteBuffer, glBuffer.Buffer);
                 CheckLastError();
                 glBufferSubData(
-                    bufferTarget,
+                    BufferTarget.CopyWriteBuffer,
                     (IntPtr)bufferOffsetInBytes,
                     (UIntPtr)sizeInBytes,
                     dataPtr.ToPointer());
@@ -1572,8 +1569,8 @@ namespace Veldrid.OpenGL
                     srcGLTexture.Format);
 
                 uint denseRowPitch = FormatHelpers.GetRowPitch(width, srcGLTexture.Format);
-                uint denseDepthPitch = FormatHelpers.GetDepthPitch(denseRowPitch, height, srcGLTexture.Format);
                 uint numRows = FormatHelpers.GetNumRows(height, srcGLTexture.Format);
+                uint denseDepthPitch = FormatHelpers.GetDepthPitch(denseRowPitch, numRows);
                 uint trueCopySize = denseRowPitch * numRows;
                 StagingBlock trueCopySrc = _stagingMemoryPool.GetStagingBlock(trueCopySize);
 

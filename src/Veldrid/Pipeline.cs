@@ -9,7 +9,7 @@ namespace Veldrid
     /// </summary>
     public abstract class Pipeline : DeviceResource, IDisposable
     {
-        internal Pipeline(ref GraphicsPipelineDescription graphicsDescription)
+        protected Pipeline(ref GraphicsPipelineDescription graphicsDescription)
             : this(graphicsDescription.ResourceLayouts)
         {
 #if VALIDATE_USAGE
@@ -17,11 +17,11 @@ namespace Veldrid
 #endif
         }
 
-        internal Pipeline(ref ComputePipelineDescription computeDescription)
+        protected Pipeline(ref ComputePipelineDescription computeDescription)
             : this(computeDescription.ResourceLayouts)
         { }
 
-        internal Pipeline(ResourceLayout[] resourceLayouts)
+        protected Pipeline(ResourceLayout[] resourceLayouts)
         {
 #if VALIDATE_USAGE
             ResourceLayouts = Util.ShallowClone(resourceLayouts);

@@ -12,7 +12,7 @@ namespace Veldrid.OpenGL
 
         private readonly List<StagingBlock> _storage;
         private readonly SortedList<uint, uint> _availableBlocks;
-        private object _lock = new object();
+        private readonly object _lock = new object();
         private bool _disposed;
 
         public StagingMemoryPool()

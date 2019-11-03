@@ -10,19 +10,22 @@ namespace Veldrid
         /// <summary>
         /// The name of the element.
         /// </summary>
-        public string Name;
+        public string Name { get; }
+
         /// <summary>
         /// The kind of resource.
         /// </summary>
-        public ResourceKind Kind;
+        public ResourceKind Kind { get; }
+
         /// <summary>
         /// The <see cref="ShaderStages"/> in which this element is used.
         /// </summary>
-        public ShaderStages Stages;
+        public ShaderStages Stages { get; }
+
         /// <summary>
         /// Miscellaneous resource options for this element.
         /// </summary>
-        public ResourceLayoutElementOptions Options;
+        public ResourceLayoutElementOptions Options { get; }
 
         /// <summary>
         /// Constructs a new ResourceLayoutElementDescription.
@@ -87,6 +90,7 @@ namespace Veldrid
         /// No special options.
         /// </summary>
         None,
+
         /// <summary>
         /// Can be applied to a buffer type resource (<see cref="ResourceKind.StructuredBufferReadOnly"/>,
         /// <see cref="ResourceKind.StructuredBufferReadWrite"/>, or <see cref="ResourceKind.UniformBuffer"/>), allowing it to be

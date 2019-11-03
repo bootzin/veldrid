@@ -15,7 +15,7 @@ namespace Veldrid
         private readonly List<IDisposable> _disposables = new List<IDisposable>();
         private Sampler _aniso4xSampler;
 
-        internal GraphicsDevice() { }
+        protected GraphicsDevice() { }
 
         /// <summary>
         /// Gets a value identifying the specific graphics API used by this instance.
@@ -315,10 +315,10 @@ namespace Veldrid
         }
 
         /// <summary>
-        /// </summary>
         /// <param name="resource"></param>
         /// <param name="mode"></param>
         /// <param name="subresource"></param>
+        /// </summary>
         /// <returns></returns>
         protected abstract MappedResource MapCore(MappableResource resource, MapMode mode, uint subresource);
 
@@ -365,9 +365,9 @@ namespace Veldrid
         }
 
         /// <summary>
-        /// </summary>
         /// <param name="resource"></param>
         /// <param name="subresource"></param>
+        /// </summary>
         protected abstract void UnmapCore(MappableResource resource, uint subresource);
 
         /// <summary>

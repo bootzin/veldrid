@@ -9,10 +9,10 @@ namespace Veldrid.OpenGL
     internal unsafe class OpenGLTexture : Texture, OpenGLDeferredResource
     {
         private readonly OpenGLGraphicsDevice _gd;
+        private readonly uint[] _framebuffers;
+        private readonly uint[] _pbos;
+        private readonly uint[] _pboSizes;
         private uint _texture;
-        private uint[] _framebuffers;
-        private uint[] _pbos;
-        private uint[] _pboSizes;
         private bool _disposed;
 
         private string _name;

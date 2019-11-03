@@ -340,6 +340,11 @@ namespace Veldrid
             return rowPitch * GetNumRows(height, format);
         }
 
+        internal static uint GetDepthPitch(uint rowPitch, uint numRows)
+        {
+            return rowPitch * numRows;
+        }
+
         internal static uint GetRegionSize(uint width, uint height, uint depth, PixelFormat format)
         {
             uint blockSizeInBytes;
