@@ -86,7 +86,7 @@ namespace Veldrid.OpenGL
             glClearStencil(stencil);
             CheckLastError();
 
-            if (_graphicsPipeline != null && _graphicsPipeline.RasterizerState.ScissorTestEnabled)
+            if (_graphicsPipeline?.RasterizerState.ScissorTestEnabled == true)
             {
                 glDisable(EnableCap.ScissorTest);
                 CheckLastError();
@@ -96,7 +96,7 @@ namespace Veldrid.OpenGL
             glClear(ClearBufferMask.DepthBufferBit | ClearBufferMask.StencilBufferBit);
             CheckLastError();
 
-            if (_graphicsPipeline != null && _graphicsPipeline.RasterizerState.ScissorTestEnabled)
+            if (_graphicsPipeline?.RasterizerState.ScissorTestEnabled == true)
             {
                 glEnable(EnableCap.ScissorTest);
             }
@@ -812,7 +812,7 @@ namespace Veldrid.OpenGL
                 if (glResourceSet.Layout.IsDynamicBuffer(element))
                 {
                     bufferOffset = brsi.Offsets.Get(dynamicOffsetIndex);
-                    dynamicOffsetIndex ++;
+                    dynamicOffsetIndex++;
                 }
 
                 switch (kind)
@@ -844,7 +844,7 @@ namespace Veldrid.OpenGL
                                 (UIntPtr)range.SizeInBytes);
                             CheckLastError();
 
-                            ubOffset ++;
+                            ubOffset++;
                         }
                         break;
                     }
@@ -885,7 +885,7 @@ namespace Veldrid.OpenGL
                                     (UIntPtr)range.SizeInBytes);
                                 CheckLastError();
                             }
-                            ssboOffset ++;
+                            ssboOffset++;
                         }
                         break;
                     }

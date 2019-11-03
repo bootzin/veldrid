@@ -181,6 +181,13 @@ namespace Veldrid.OpenGL
                 throw new VeldridException($"Error linking GL program: {log}");
             }
 
+            foreach (Shader stage in GraphicsShaders)
+            {
+                OpenGLShader glShader = Util.AssertSubtype<Shader, OpenGLShader>(stage);
+                glDetachShader(_program, glShader.Shader);
+                CheckLastError();
+            }
+
             ProcessResourceSetLayouts(ResourceLayouts);
         }
 

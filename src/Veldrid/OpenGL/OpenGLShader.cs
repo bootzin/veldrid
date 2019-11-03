@@ -87,7 +87,7 @@ namespace Veldrid.OpenGL
                 glGetShaderInfoLog(Shader, (uint)infoLogLength, &returnedInfoLength, infoLog);
                 CheckLastError();
 
-                string message = infoLog != null
+                string message = infoLog != default
                     ? Encoding.UTF8.GetString(infoLog, (int)returnedInfoLength)
                     : "<null>";
 
