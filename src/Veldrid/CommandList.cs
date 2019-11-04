@@ -360,11 +360,11 @@ namespace Veldrid
 
         // TODO: private protected
         /// <summary>
-        /// </summary>
         /// <param name="slot"></param>
         /// <param name="set"></param>
         /// <param name="dynamicOffsetsCount"></param>
         /// <param name="dynamicOffsets"></param>
+        /// </summary>
         protected abstract void SetComputeResourceSetCore(uint slot, ResourceSet set, uint dynamicOffsetsCount, ref uint dynamicOffsets);
 
         /// <summary>

@@ -168,7 +168,7 @@ namespace Veldrid.OpenGL
             int linkStatus;
             glGetProgramiv(Program, GetProgramParameterName.LinkStatus, &linkStatus);
             CheckLastError();
-            if (linkStatus == 1)
+            if (linkStatus != 1)
             {
                 Span<byte> infoLog = stackalloc byte[4096];
                 uint bytesWritten;
@@ -184,7 +184,7 @@ namespace Veldrid.OpenGL
             foreach (Shader stage in GraphicsShaders)
             {
                 OpenGLShader glShader = Util.AssertSubtype<Shader, OpenGLShader>(stage);
-                glDetachShader(_program, glShader.Shader);
+                glDetachShader(Program, glShader.Shader);
                 CheckLastError();
             }
 
