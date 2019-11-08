@@ -10,6 +10,7 @@ using System.Text;
 using static Veldrid.Sdl2.Sdl2Native;
 using System.ComponentModel;
 using Veldrid;
+using System.Linq;
 
 namespace Veldrid.Sdl2
 {
@@ -944,25 +945,23 @@ namespace Veldrid.Sdl2
 
         private class SimpleInputSnapshot : InputSnapshot
         {
-            public List<KeyEvent> KeyEventsList { get; private set; } = new List<KeyEvent>();
-            public List<MouseEvent> MouseEventsList { get; private set; } = new List<MouseEvent>();
-            public List<char> KeyCharPressesList { get; private set; } = new List<char>();
+            public HashSet<KeyEvent> KeyEventsList { get; } = new HashSet<KeyEvent>();
+            public HashSet<MouseEvent> MouseEventsList { get; } = new HashSet<MouseEvent>();
+            public HashSet<char> KeyCharPressesList { get; } = new HashSet<char>();
 
-            public IReadOnlyList<KeyEvent> KeyEvents => KeyEventsList;
+            public IReadOnlyCollection<KeyEvent> KeyEvents => KeyEventsList;
 
-            public IReadOnlyList<MouseEvent> MouseEvents => MouseEventsList;
+            public IReadOnlyCollection<MouseEvent> MouseEvents => MouseEventsList;
 
-            public IReadOnlyList<char> KeyCharPresses => KeyCharPressesList;
+            public IReadOnlyCollection<char> KeyCharPresses => KeyCharPressesList;
 
             public Vector2 MousePosition { get; set; }
-
-            private bool[] _mouseDown = new bool[13];
-            public bool[] MouseDown => _mouseDown;
+			public bool[] MouseDown { get; } = new bool[13];
             public float WheelDelta { get; set; }
 
             public bool IsMouseDown(MouseButton button)
             {
-                return _mouseDown[(int)button];
+                return MouseDown[(int)button];
             }
 
             internal void Clear()
@@ -988,7 +987,7 @@ namespace Veldrid.Sdl2
 
                 other.MousePosition = MousePosition;
                 other.WheelDelta = WheelDelta;
-                _mouseDown.CopyTo(other._mouseDown, 0);
+                MouseDown.CopyTo(other.MouseDown, 0);
             }
         }
 

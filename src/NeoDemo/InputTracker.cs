@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Numerics;
 using System.Text;
 using Veldrid.Sdl2;
@@ -48,7 +49,7 @@ namespace Veldrid.NeoDemo
             MouseDelta = window.MouseDelta;
             for (int i = 0; i < snapshot.KeyEvents.Count; i++)
             {
-                KeyEvent ke = snapshot.KeyEvents[i];
+                KeyEvent ke = snapshot.KeyEvents.ToList()[i];
                 if (ke.Down)
                 {
                     KeyDown(ke.Key);
@@ -60,7 +61,7 @@ namespace Veldrid.NeoDemo
             }
             for (int i = 0; i < snapshot.MouseEvents.Count; i++)
             {
-                MouseEvent me = snapshot.MouseEvents[i];
+                MouseEvent me = snapshot.MouseEvents.ToList()[i];
                 if (me.Down)
                 {
                     MouseDown(me.MouseButton);

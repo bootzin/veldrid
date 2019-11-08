@@ -6,6 +6,7 @@ using System.Reflection;
 using System.IO;
 using System.Runtime.CompilerServices;
 using System.Threading;
+using System.Linq;
 
 namespace Veldrid
 {
@@ -425,7 +426,7 @@ namespace Veldrid
             bool rightPressed = false;
             for (int i = 0; i < snapshot.MouseEvents.Count; i++)
             {
-                MouseEvent me = snapshot.MouseEvents[i];
+                MouseEvent me = snapshot.MouseEvents.ToList()[i];
                 if (me.Down)
                 {
                     switch (me.MouseButton)
@@ -449,14 +450,14 @@ namespace Veldrid
             io.MousePos = snapshot.MousePosition;
             io.MouseWheel = snapshot.WheelDelta;
 
-            IReadOnlyList<char> keyCharPresses = snapshot.KeyCharPresses;
+            IReadOnlyList<char> keyCharPresses = snapshot.KeyCharPresses.ToList();
             for (int i = 0; i < keyCharPresses.Count; i++)
             {
                 char c = keyCharPresses[i];
                 ImGui.GetIO().AddInputCharacter(c);
             }
 
-            IReadOnlyList<KeyEvent> keyEvents = snapshot.KeyEvents;
+            IReadOnlyList<KeyEvent> keyEvents = snapshot.KeyEvents.ToList();
             for (int i = 0; i < keyEvents.Count; i++)
             {
                 KeyEvent keyEvent = keyEvents[i];
