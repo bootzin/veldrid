@@ -1,16 +1,12 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Numerics;
 using System.Runtime.CompilerServices;
+using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
-using System.Diagnostics;
-using System.Text;
-
 using static Veldrid.Sdl2.Sdl2Native;
-using System.ComponentModel;
-using Veldrid;
-using System.Linq;
 
 namespace Veldrid.Sdl2
 {
@@ -21,9 +17,9 @@ namespace Veldrid.Sdl2
         internal uint WindowID { get; private set; }
         private bool _exists;
 
-        private SimpleInputSnapshot _publicSnapshot = new SimpleInputSnapshot();
         private SimpleInputSnapshot _privateSnapshot = new SimpleInputSnapshot();
-        private SimpleInputSnapshot _privateBackbuffer = new SimpleInputSnapshot();
+        private readonly SimpleInputSnapshot _publicSnapshot = new SimpleInputSnapshot();
+        private readonly SimpleInputSnapshot _privateBackbuffer = new SimpleInputSnapshot();
 
         // Threaded Sdl2Window flags
         private readonly bool _threadedProcessing;
@@ -35,12 +31,12 @@ namespace Veldrid.Sdl2
         // Current input states
         private int _currentMouseX;
         private int _currentMouseY;
-        private bool[] _currentMouseButtonStates = new bool[13];
+        private readonly bool[] _currentMouseButtonStates = new bool[13];
         private Vector2 _currentMouseDelta;
 
         // Cached Sdl2Window state (for threaded processing)
-        private BufferedValue<Point> _cachedPosition = new BufferedValue<Point>();
-        private BufferedValue<Point> _cachedSize = new BufferedValue<Point>();
+        private readonly BufferedValue<Point> _cachedPosition = new BufferedValue<Point>();
+        private readonly BufferedValue<Point> _cachedSize = new BufferedValue<Point>();
         private string _cachedWindowTitle;
         private bool _newWindowTitleReceived;
         private bool _firstMouseEvent = true;
@@ -245,6 +241,9 @@ namespace Veldrid.Sdl2
         public IntPtr SdlWindowHandle => _window;
 
         public event Action Resized;
+        public event Action Minimized;
+        public event Action Maximized;
+        public event Action Restored;
         public event Action Closing;
         public event Action Closed;
         public event Action FocusLost;
@@ -324,7 +323,6 @@ namespace Veldrid.Sdl2
                     return;
                 }
 
-                double currentTick = sw.ElapsedTicks;
                 double currentTimeMs = sw.ElapsedTicks * (1000.0 / Stopwatch.Frequency);
                 if (LimitPollRate && currentTimeMs - previousPollTimeMs < PollIntervalInMs)
                 {
@@ -400,13 +398,11 @@ namespace Veldrid.Sdl2
             ProcessEvents(eventHandler);
         }
 
-        private unsafe void HandleEvent(SDL_Event* ev)
+        private void HandleEvent(SDL_Event* ev)
         {
             switch (ev->type)
             {
                 case SDL_EventType.Quit:
-                    Close();
-                    break;
                 case SDL_EventType.Terminating:
                     Close();
                     break;
@@ -463,7 +459,8 @@ namespace Veldrid.Sdl2
 
         private void HandleTextInputEvent(SDL_TextInputEvent textInputEvent)
         {
-            uint byteCount = 0;
+            int byteCount = 0;
+
             // Loop until the null terminator is found or the max size is reached.
             while (byteCount < SDL_TextInputEvent.MaxTextSize && textInputEvent.text[byteCount++] != 0)
             { }
@@ -471,13 +468,14 @@ namespace Veldrid.Sdl2
             if (byteCount > 1)
             {
                 // We don't want the null terminator.
-                byteCount -= 1;
-                int charCount = Encoding.UTF8.GetCharCount(textInputEvent.text, (int)byteCount);
-                char* charsPtr = stackalloc char[charCount];
-                Encoding.UTF8.GetChars(textInputEvent.text, (int)byteCount, charsPtr, charCount);
+                byteCount--;
+                ReadOnlySpan<byte> textPtr = new ReadOnlySpan<byte>(textInputEvent.text, byteCount);
+                int charCount = Encoding.UTF8.GetCharCount(textPtr);
+                Span<char> charsPtr = stackalloc char[charCount];
+                Encoding.UTF8.GetChars(textPtr, charsPtr);
                 for (int i = 0; i < charCount; i++)
                 {
-                    _privateSnapshot.KeyCharPressesList.Add(charsPtr[i]);
+                    _privateSnapshot.KeyCharPressesHash.Add(charsPtr[i]);
                 }
             }
         }
@@ -485,7 +483,7 @@ namespace Veldrid.Sdl2
         private void HandleMouseWheelEvent(SDL_MouseWheelEvent mouseWheelEvent)
         {
             _privateSnapshot.WheelDelta += mouseWheelEvent.y;
-            MouseWheel?.Invoke(new MouseWheelEventArgs(GetCurrentMouseState(), (float)mouseWheelEvent.y));
+            MouseWheel?.Invoke(new MouseWheelEventArgs(GetCurrentMouseState(), mouseWheelEvent.y));
         }
 
         private void HandleDropEvent(SDL_DropEvent dropEvent)
@@ -506,7 +504,7 @@ namespace Veldrid.Sdl2
             _currentMouseButtonStates[(int)button] = down;
             _privateSnapshot.MouseDown[(int)button] = down;
             MouseEvent mouseEvent = new MouseEvent(button, down);
-            _privateSnapshot.MouseEventsList.Add(mouseEvent);
+            _privateSnapshot.MouseEventsHash.Add(mouseEvent);
             if (down)
             {
                 MouseDown?.Invoke(mouseEvent);
@@ -549,15 +547,15 @@ namespace Veldrid.Sdl2
                 _currentMouseDelta += delta;
                 MouseMove?.Invoke(new MouseMoveEventArgs(GetCurrentMouseState(), mousePos));
             }
-
-            _firstMouseEvent = false;
+            else
+                _firstMouseEvent = false;
         }
 
         private void HandleKeyboardEvent(SDL_KeyboardEvent keyboardEvent)
         {
             SimpleInputSnapshot snapshot = _privateSnapshot;
             KeyEvent keyEvent = new KeyEvent(MapKey(keyboardEvent.keysym), keyboardEvent.state == 1, MapModifierKeys(keyboardEvent.keysym.mod));
-            snapshot.KeyEventsList.Add(keyEvent);
+            snapshot.KeyEventsHash.Add(keyEvent);
             if (keyboardEvent.state == 1)
             {
                 KeyDown?.Invoke(keyEvent);
@@ -833,11 +831,20 @@ namespace Veldrid.Sdl2
             switch (windowEvent.@event)
             {
                 case SDL_WindowEventID.Resized:
-                case SDL_WindowEventID.SizeChanged:
+                    RefreshCachedSize();
+                    Resized?.Invoke();
+                    break;
                 case SDL_WindowEventID.Minimized:
+                    RefreshCachedSize();
+                    Minimized?.Invoke();
+                    break;
                 case SDL_WindowEventID.Maximized:
+                    RefreshCachedSize();
+                    Maximized?.Invoke();
+                    break;
                 case SDL_WindowEventID.Restored:
-                    HandleResizedMessage();
+                    RefreshCachedSize();
+                    Restored?.Invoke();
                     break;
                 case SDL_WindowEventID.FocusGained:
                     FocusGained?.Invoke();
@@ -871,12 +878,6 @@ namespace Veldrid.Sdl2
                     Debug.WriteLine("Unhandled SDL WindowEvent: " + windowEvent.@event);
                     break;
             }
-        }
-
-        private void HandleResizedMessage()
-        {
-            RefreshCachedSize();
-            Resized?.Invoke();
         }
 
         private void RefreshCachedSize()
@@ -945,15 +946,15 @@ namespace Veldrid.Sdl2
 
         private class SimpleInputSnapshot : InputSnapshot
         {
-            public HashSet<KeyEvent> KeyEventsList { get; } = new HashSet<KeyEvent>();
-            public HashSet<MouseEvent> MouseEventsList { get; } = new HashSet<MouseEvent>();
-            public HashSet<char> KeyCharPressesList { get; } = new HashSet<char>();
+            public HashSet<KeyEvent> KeyEventsHash { get; } = new HashSet<KeyEvent>();
+            public HashSet<MouseEvent> MouseEventsHash { get; } = new HashSet<MouseEvent>();
+            public HashSet<char> KeyCharPressesHash { get; } = new HashSet<char>();
 
-            public IReadOnlyCollection<KeyEvent> KeyEvents => KeyEventsList;
+            public IReadOnlyCollection<KeyEvent> KeyEvents => KeyEventsHash;
 
-            public IReadOnlyCollection<MouseEvent> MouseEvents => MouseEventsList;
+            public IReadOnlyCollection<MouseEvent> MouseEvents => MouseEventsHash;
 
-            public IReadOnlyCollection<char> KeyCharPresses => KeyCharPressesList;
+            public IReadOnlyCollection<char> KeyCharPresses => KeyCharPressesHash;
 
             public Vector2 MousePosition { get; set; }
 			public bool[] MouseDown { get; } = new bool[13];
@@ -966,9 +967,9 @@ namespace Veldrid.Sdl2
 
             internal void Clear()
             {
-                KeyEventsList.Clear();
-                MouseEventsList.Clear();
-                KeyCharPressesList.Clear();
+                KeyEventsHash.Clear();
+                MouseEventsHash.Clear();
+                KeyCharPressesHash.Clear();
                 WheelDelta = 0f;
             }
 
@@ -976,14 +977,14 @@ namespace Veldrid.Sdl2
             {
                 Debug.Assert(this != other);
 
-                other.MouseEventsList.Clear();
-                foreach (var me in MouseEventsList) { other.MouseEventsList.Add(me); }
+                other.MouseEventsHash.Clear();
+                foreach (MouseEvent me in MouseEventsHash) { other.MouseEventsHash.Add(me); }
 
-                other.KeyEventsList.Clear();
-                foreach (var ke in KeyEventsList) { other.KeyEventsList.Add(ke); }
+                other.KeyEventsHash.Clear();
+                foreach (KeyEvent ke in KeyEventsHash) { other.KeyEventsHash.Add(ke); }
 
-                other.KeyCharPressesList.Clear();
-                foreach (var kcp in KeyCharPressesList) { other.KeyCharPressesList.Add(kcp); }
+                other.KeyCharPressesHash.Clear();
+                foreach (char kcp in KeyCharPressesHash) { other.KeyCharPressesHash.Add(kcp); }
 
                 other.MousePosition = MousePosition;
                 other.WheelDelta = WheelDelta;
@@ -1018,24 +1019,24 @@ namespace Veldrid.Sdl2
         }
     }
 
-    public struct MouseState
+    public readonly struct MouseState
     {
         public readonly int X;
         public readonly int Y;
 
-        private bool _mouseDown0;
-        private bool _mouseDown1;
-        private bool _mouseDown2;
-        private bool _mouseDown3;
-        private bool _mouseDown4;
-        private bool _mouseDown5;
-        private bool _mouseDown6;
-        private bool _mouseDown7;
-        private bool _mouseDown8;
-        private bool _mouseDown9;
-        private bool _mouseDown10;
-        private bool _mouseDown11;
-        private bool _mouseDown12;
+        private readonly bool _mouseDown0;
+        private readonly bool _mouseDown1;
+        private readonly bool _mouseDown2;
+        private readonly bool _mouseDown3;
+        private readonly bool _mouseDown4;
+        private readonly bool _mouseDown5;
+        private readonly bool _mouseDown6;
+        private readonly bool _mouseDown7;
+        private readonly bool _mouseDown8;
+        private readonly bool _mouseDown9;
+        private readonly bool _mouseDown10;
+        private readonly bool _mouseDown11;
+        private readonly bool _mouseDown12;
 
         public MouseState(
             int x, int y,
@@ -1061,8 +1062,7 @@ namespace Veldrid.Sdl2
 
         public bool IsButtonDown(MouseButton button)
         {
-            uint index = (uint)button;
-            switch (index)
+            switch ((uint)button)
             {
                 case 0:
                     return _mouseDown0;

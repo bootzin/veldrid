@@ -193,7 +193,6 @@ namespace Veldrid.NeoDemo
                 _windowWidth / _windowHeight,
                 _near,
                 _far);
-            //_projectionMatrix = Util.CreateOrtho(_gd, _useReverseDepth, -1, 1, 1, -1, _near, _far);
             ProjectionChanged?.Invoke(_projectionMatrix);
         }
 
