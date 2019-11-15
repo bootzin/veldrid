@@ -658,6 +658,7 @@ namespace Veldrid.VirtualReality.Oculus
         AutoGenerateMips = 0x0008,
     }
 
+    [Flags]
     internal enum ovrTextureBindFlags
     {
         None,

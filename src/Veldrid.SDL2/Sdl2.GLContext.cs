@@ -87,6 +87,7 @@ namespace Veldrid.Sdl2
         ContextReleaseBehavior
     }
 
+    [Flags]
     public enum SDL_GLContextFlag
     {
         Debug = 0x0001,
@@ -95,6 +96,7 @@ namespace Veldrid.Sdl2
         ResetIsolatio = 0x0008,
     }
 
+    [Flags]
     public enum SDL_GLProfile
     {
         Core = 0x0001,
