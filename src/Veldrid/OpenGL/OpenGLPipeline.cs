@@ -1,10 +1,10 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Diagnostics;
-using System.Text;
-using Veldrid.OpenGLBinding;
+﻿using static Veldrid.OpenGLBinding.OpenGLNative;
 using static Veldrid.OpenGL.OpenGLUtil;
-using static Veldrid.OpenGLBinding.OpenGLNative;
+using Veldrid.OpenGLBinding;
+using System.Text;
+using System.Diagnostics;
+using System.Collections.Generic;
+using System;
 
 namespace Veldrid.OpenGL
 {
@@ -29,15 +29,16 @@ namespace Veldrid.OpenGL
         public override bool IsComputePipeline { get; }
         public Shader ComputeShader { get; }
 
+        private uint _program;
         private bool _disposed;
 
         private SetBindingsInfo[] _setInfos;
 
         public int[] VertexStrides { get; }
 
-		public uint Program { get; private set; }
+        public uint Program => _program;
 
-		public uint GetUniformBufferCount(uint setSlot) => _setInfos[setSlot].UniformBufferCount;
+        public uint GetUniformBufferCount(uint setSlot) => _setInfos[setSlot].UniformBufferCount;
         public uint GetShaderStorageBufferCount(uint setSlot) => _setInfos[setSlot].ShaderStorageBufferCount;
 
         public override string Name { get; set; }
@@ -103,13 +104,13 @@ namespace Veldrid.OpenGL
 
         private void CreateGraphicsGLResources()
         {
-            Program = glCreateProgram();
+            _program = glCreateProgram();
             CheckLastError();
             foreach (Shader stage in GraphicsShaders)
             {
                 OpenGLShader glShader = Util.AssertSubtype<Shader, OpenGLShader>(stage);
                 glShader.EnsureResourcesCreated();
-                glAttachShader(Program, glShader.Shader);
+                glAttachShader(_program, glShader.Shader);
                 CheckLastError();
             }
 
@@ -118,24 +119,24 @@ namespace Veldrid.OpenGL
             {
                 for (int i = 0; i < layoutDesc.Elements.Length; i++)
                 {
-                    ReadOnlySpan<char> elementName = layoutDesc.Elements[i].Name;
+                    string elementName = layoutDesc.Elements[i].Name;
                     int byteCount = Encoding.UTF8.GetByteCount(elementName) + 1;
-                    Span<byte> elementNamePtr = stackalloc byte[byteCount];
-                    int bytesWritten = Encoding.UTF8.GetBytes(elementName, elementNamePtr);
-                    Debug.Assert(bytesWritten == byteCount - 1);
+                    byte* elementNamePtr = stackalloc byte[byteCount];
+                    fixed (char* charPtr = elementName)
+                    {
+                        int bytesWritten = Encoding.UTF8.GetBytes(charPtr, elementName.Length, elementNamePtr, byteCount);
+                        Debug.Assert(bytesWritten == byteCount - 1);
+                    }
                     elementNamePtr[byteCount - 1] = 0; // Add null terminator.
 
-                    fixed (byte* bytePtr = elementNamePtr)
-                    {
-                        glBindAttribLocation(Program, slot, bytePtr);
-                        CheckLastError();
-                    }
+                    glBindAttribLocation(_program, slot, elementNamePtr);
+                    CheckLastError();
 
-                    slot++;
+                    slot += 1;
                 }
             }
 
-            glLinkProgram(Program);
+            glLinkProgram(_program);
             CheckLastError();
 
 #if DEBUG && GL_VALIDATE_VERTEX_INPUT_ELEMENTS
@@ -144,48 +145,37 @@ namespace Veldrid.OpenGL
             {
                 for (int i = 0; i < layoutDesc.Elements.Length; i++)
                 {
-                    ReadOnlySpan<char> elementName = layoutDesc.Elements[i].Name;
+                    string elementName = layoutDesc.Elements[i].Name;
                     int byteCount = Encoding.UTF8.GetByteCount(elementName) + 1;
-                    Span<byte> elementNamePtr = stackalloc byte[byteCount];
-                    int bytesWritten = Encoding.UTF8.GetBytes(elementName, elementNamePtr);
-                    Debug.Assert(bytesWritten == byteCount - 1);
+                    byte* elementNamePtr = stackalloc byte[byteCount];
+                    fixed (char* charPtr = elementName)
+                    {
+                        int bytesWritten = Encoding.UTF8.GetBytes(charPtr, elementName.Length, elementNamePtr, byteCount);
+                        Debug.Assert(bytesWritten == byteCount - 1);
+                    }
                     elementNamePtr[byteCount - 1] = 0; // Add null terminator.
 
-                    fixed (byte* bytePtr = elementNamePtr)
+                    int location = glGetAttribLocation(_program, elementNamePtr);
+                    if (location == -1)
                     {
-                        int location = glGetAttribLocation(_program, bytePtr);
-                        if (location == -1)
-                        {
-                            throw new VeldridException("There was no attribute variable with the name " + layoutDesc.Elements[i].Name);
-                        }
+                        throw new VeldridException("There was no attribute variable with the name " + layoutDesc.Elements[i].Name);
                     }
-
-                    slot ++;
+                    slot += 1;
                 }
             }
 #endif
 
             int linkStatus;
-            glGetProgramiv(Program, GetProgramParameterName.LinkStatus, &linkStatus);
+            glGetProgramiv(_program, GetProgramParameterName.LinkStatus, &linkStatus);
             CheckLastError();
             if (linkStatus != 1)
             {
-                Span<byte> infoLog = stackalloc byte[4096];
+                byte* infoLog = stackalloc byte[4096];
                 uint bytesWritten;
-                fixed (byte* infoLogPtr = infoLog)
-                {
-                    glGetProgramInfoLog(Program, 4096, &bytesWritten, infoLogPtr);
-                    CheckLastError();
-                }
-                string log = Encoding.UTF8.GetString(infoLog);
-                throw new VeldridException($"Error linking GL program: {log}");
-            }
-
-            foreach (Shader stage in GraphicsShaders)
-            {
-                OpenGLShader glShader = Util.AssertSubtype<Shader, OpenGLShader>(stage);
-                glDetachShader(Program, glShader.Shader);
+                glGetProgramInfoLog(_program, 4096, &bytesWritten, infoLog);
                 CheckLastError();
+                string log = Encoding.UTF8.GetString(infoLog, (int)bytesWritten);
+                throw new VeldridException($"Error linking GL program: {log}");
             }
 
             ProcessResourceSetLayouts(ResourceLayouts);
@@ -195,6 +185,7 @@ namespace Veldrid.OpenGL
         {
             int resourceLayoutCount = layouts.Length;
             _setInfos = new SetBindingsInfo[resourceLayoutCount];
+            int lastTextureLocation = -1;
             int relativeTextureIndex = -1;
             int relativeImageIndex = -1;
             uint storageBlockIndex = 0; // Tracks OpenGL ES storage buffers.
@@ -202,7 +193,7 @@ namespace Veldrid.OpenGL
             {
                 ResourceLayout setLayout = layouts[setSlot];
                 OpenGLResourceLayout glSetLayout = Util.AssertSubtype<ResourceLayout, OpenGLResourceLayout>(setLayout);
-                Span<ResourceLayoutElementDescription> resources = glSetLayout.Elements;
+                ResourceLayoutElementDescription[] resources = glSetLayout.Elements;
 
                 Dictionary<uint, OpenGLUniformBinding> uniformBindings = new Dictionary<uint, OpenGLUniformBinding>();
                 Dictionary<uint, OpenGLTextureBindingSlotInfo> textureBindings = new Dictionary<uint, OpenGLTextureBindingSlotInfo>();
@@ -212,64 +203,93 @@ namespace Veldrid.OpenGL
                 List<int> samplerTrackedRelativeTextureIndices = new List<int>();
                 for (uint i = 0; i < resources.Length; i++)
                 {
-                    ResourceLayoutElementDescription resource = resources[(int)i];
+                    ResourceLayoutElementDescription resource = resources[i];
                     if (resource.Kind == ResourceKind.UniformBuffer)
                     {
-                        ReadOnlySpan<char> resourceName = resource.Name;
+                        string resourceName = resource.Name;
                         int byteCount = Encoding.UTF8.GetByteCount(resourceName) + 1;
-                        Span<byte> resourceNamePtr = stackalloc byte[byteCount];
-                        int bytesWritten = Encoding.UTF8.GetBytes(resourceName, resourceNamePtr);
-                        Debug.Assert(bytesWritten == byteCount - 1);
+                        byte* resourceNamePtr = stackalloc byte[byteCount];
+                        fixed (char* charPtr = resourceName)
+                        {
+                            int bytesWritten = Encoding.UTF8.GetBytes(charPtr, resourceName.Length, resourceNamePtr, byteCount);
+                            Debug.Assert(bytesWritten == byteCount - 1);
+                        }
                         resourceNamePtr[byteCount - 1] = 0; // Add null terminator.
 
-                        fixed (byte* bytePtr = resourceNamePtr)
+                        uint blockIndex = glGetUniformBlockIndex(_program, resourceNamePtr);
+                        CheckLastError();
+                        if (blockIndex != GL_INVALID_INDEX)
                         {
-                            uint blockIndex = glGetUniformBlockIndex(Program, bytePtr);
+                            int blockSize;
+                            glGetActiveUniformBlockiv(_program, blockIndex, ActiveUniformBlockParameter.UniformBlockDataSize, &blockSize);
                             CheckLastError();
-
-                            if (blockIndex != GL_INVALID_INDEX)
-                            {
-                                int blockSize;
-                                glGetActiveUniformBlockiv(Program, blockIndex, ActiveUniformBlockParameter.UniformBlockDataSize, &blockSize);
-                                CheckLastError();
-                                uniformBindings[i] = new OpenGLUniformBinding(Program, blockIndex, (uint)blockSize);
-                            }
+                            uniformBindings[i] = new OpenGLUniformBinding(_program, blockIndex, (uint)blockSize);
                         }
+#if DEBUG && GL_VALIDATE_SHADER_RESOURCE_NAMES
+                        else
+                        {
+                            uint uniformBufferIndex = 0;
+                            uint bufferNameByteCount = 64;
+                            byte* bufferNamePtr = stackalloc byte[(int)bufferNameByteCount];
+                            var names = new List<string>();
+                            while (true)
+                            {
+                                uint actualLength;
+                                glGetActiveUniformBlockName(_program, uniformBufferIndex, bufferNameByteCount, &actualLength, bufferNamePtr);
+
+                                if (glGetError() != 0)
+                                    break;
+
+                                string name = Encoding.UTF8.GetString(bufferNamePtr, (int)actualLength);
+                                names.Add(name);
+                                uniformBufferIndex++;
+                            }
+
+                            throw new VeldridException($"Unable to bind uniform buffer \"{resourceName}\" by name. Valid names for this pipeline are: {string.Join(", ", names)}");
+                        }
+#endif
                     }
                     else if (resource.Kind == ResourceKind.TextureReadOnly)
                     {
-                        ReadOnlySpan<char> resourceName = resource.Name;
+                        string resourceName = resource.Name;
                         int byteCount = Encoding.UTF8.GetByteCount(resourceName) + 1;
-                        Span<byte> resourceNamePtr = stackalloc byte[byteCount];
-                        int bytesWritten = Encoding.UTF8.GetBytes(resourceName, resourceNamePtr);
-                        Debug.Assert(bytesWritten == byteCount - 1);
-                        resourceNamePtr[byteCount - 1] = 0; // Add null terminator.
-
-                        fixed (byte* bytePtr = resourceNamePtr)
+                        byte* resourceNamePtr = stackalloc byte[byteCount];
+                        fixed (char* charPtr = resourceName)
                         {
-                            int location = glGetUniformLocation(Program, bytePtr);
-                            CheckLastError();
-                            relativeTextureIndex++;
-                            textureBindings[i] = new OpenGLTextureBindingSlotInfo() { RelativeIndex = relativeTextureIndex, UniformLocation = location };
-                            samplerTrackedRelativeTextureIndices.Add(relativeTextureIndex);
+                            int bytesWritten = Encoding.UTF8.GetBytes(charPtr, resourceName.Length, resourceNamePtr, byteCount);
+                            Debug.Assert(bytesWritten == byteCount - 1);
                         }
+                        resourceNamePtr[byteCount - 1] = 0; // Add null terminator.
+                        int location = glGetUniformLocation(_program, resourceNamePtr);
+                        CheckLastError();
+#if DEBUG && GL_VALIDATE_SHADER_RESOURCE_NAMES
+                        if(location == -1)
+                            ReportInvalidResourceName(resourceName);
+#endif
+                        relativeTextureIndex += 1;
+                        textureBindings[i] = new OpenGLTextureBindingSlotInfo() { RelativeIndex = relativeTextureIndex, UniformLocation = location };
+                        lastTextureLocation = location;
+                        samplerTrackedRelativeTextureIndices.Add(relativeTextureIndex);
                     }
                     else if (resource.Kind == ResourceKind.TextureReadWrite)
                     {
-                        ReadOnlySpan<char> resourceName = resource.Name;
+                        string resourceName = resource.Name;
                         int byteCount = Encoding.UTF8.GetByteCount(resourceName) + 1;
-                        Span<byte> resourceNamePtr = stackalloc byte[byteCount];
-                        int bytesWritten = Encoding.UTF8.GetBytes(resourceName, resourceNamePtr);
-                        Debug.Assert(bytesWritten == byteCount - 1);
-                        resourceNamePtr[byteCount - 1] = 0; // Add null terminator.
-
-                        fixed (byte* bytePtr = resourceNamePtr)
+                        byte* resourceNamePtr = stackalloc byte[byteCount];
+                        fixed (char* charPtr = resourceName)
                         {
-                            int location = glGetUniformLocation(Program, bytePtr);
-                            CheckLastError();
-                            relativeImageIndex++;
-                            textureBindings[i] = new OpenGLTextureBindingSlotInfo() { RelativeIndex = relativeImageIndex, UniformLocation = location };
+                            int bytesWritten = Encoding.UTF8.GetBytes(charPtr, resourceName.Length, resourceNamePtr, byteCount);
+                            Debug.Assert(bytesWritten == byteCount - 1);
                         }
+                        resourceNamePtr[byteCount - 1] = 0; // Add null terminator.
+                        int location = glGetUniformLocation(_program, resourceNamePtr);
+                        CheckLastError();
+#if DEBUG && GL_VALIDATE_SHADER_RESOURCE_NAMES
+                        if(location == -1)
+                            ReportInvalidResourceName(resourceName);
+#endif
+                        relativeImageIndex += 1;
+                        textureBindings[i] = new OpenGLTextureBindingSlotInfo() { RelativeIndex = relativeImageIndex, UniformLocation = location };
                     }
                     else if (resource.Kind == ResourceKind.StructuredBufferReadOnly
                         || resource.Kind == ResourceKind.StructuredBufferReadWrite)
@@ -277,26 +297,25 @@ namespace Veldrid.OpenGL
                         uint storageBlockBinding;
                         if (_gd.BackendType == GraphicsBackend.OpenGL)
                         {
-                            ReadOnlySpan<char> resourceName = resource.Name;
+                            string resourceName = resource.Name;
                             int byteCount = Encoding.UTF8.GetByteCount(resourceName) + 1;
-                            Span<byte> resourceNamePtr = stackalloc byte[byteCount];
-                            int bytesWritten = Encoding.UTF8.GetBytes(resourceName, resourceNamePtr);
-                            Debug.Assert(bytesWritten == byteCount - 1);
-                            resourceNamePtr[byteCount - 1] = 0; // Add null terminator.
-
-                            fixed (byte* bytePtr = resourceNamePtr)
+                            byte* resourceNamePtr = stackalloc byte[byteCount];
+                            fixed (char* charPtr = resourceName)
                             {
-                                storageBlockBinding = glGetProgramResourceIndex(
-                                Program,
-                                ProgramInterface.ShaderStorageBlock,
-                                bytePtr);
-                                CheckLastError();
+                                int bytesWritten = Encoding.UTF8.GetBytes(charPtr, resourceName.Length, resourceNamePtr, byteCount);
+                                Debug.Assert(bytesWritten == byteCount - 1);
                             }
+                            resourceNamePtr[byteCount - 1] = 0; // Add null terminator.
+                            storageBlockBinding = glGetProgramResourceIndex(
+                                _program,
+                                ProgramInterface.ShaderStorageBlock,
+                                resourceNamePtr);
+                            CheckLastError();
                         }
                         else
                         {
                             storageBlockBinding = storageBlockIndex;
-                            storageBlockIndex++;
+                            storageBlockIndex += 1;
                         }
 
                         storageBufferBindings[i] = new OpenGLShaderStorageBinding(storageBlockBinding);
@@ -305,11 +324,12 @@ namespace Veldrid.OpenGL
                     {
                         Debug.Assert(resource.Kind == ResourceKind.Sampler);
 
+                        int[] relativeIndices = samplerTrackedRelativeTextureIndices.ToArray();
+                        samplerTrackedRelativeTextureIndices.Clear();
                         samplerBindings[i] = new OpenGLSamplerBindingSlotInfo()
                         {
-                            RelativeIndices = samplerTrackedRelativeTextureIndices.ToArray()
+                            RelativeIndices = relativeIndices
                         };
-                        samplerTrackedRelativeTextureIndices.Clear();
                     }
                 }
 
@@ -317,31 +337,56 @@ namespace Veldrid.OpenGL
             }
         }
 
+#if DEBUG && GL_VALIDATE_SHADER_RESOURCE_NAMES
+        void ReportInvalidResourceName(string resourceName)
+        {
+            uint uniformIndex = 0;
+            uint resourceNameByteCount = 64;
+            byte* resourceNamePtr = stackalloc byte[(int)resourceNameByteCount];
+
+            var names = new List<string>();
+            while (true)
+            {
+                uint actualLength;
+                int size;
+                uint type;
+                glGetActiveUniform(_program, uniformIndex, resourceNameByteCount,
+                    &actualLength, &size, &type, resourceNamePtr);
+
+                if (glGetError() != 0)
+                    break;
+
+                string name = Encoding.UTF8.GetString(resourceNamePtr, (int)actualLength);
+                names.Add(name);
+                uniformIndex++;
+            }
+
+            throw new VeldridException($"Unable to bind uniform \"{resourceName}\" by name. Valid names for this pipeline are: {string.Join(", ", names)}");
+        }
+#endif
+
         private void CreateComputeGLResources()
         {
-            Program = glCreateProgram();
+            _program = glCreateProgram();
             CheckLastError();
             OpenGLShader glShader = Util.AssertSubtype<Shader, OpenGLShader>(ComputeShader);
             glShader.EnsureResourcesCreated();
-            glAttachShader(Program, glShader.Shader);
+            glAttachShader(_program, glShader.Shader);
             CheckLastError();
 
-            glLinkProgram(Program);
+            glLinkProgram(_program);
             CheckLastError();
 
             int linkStatus;
-            glGetProgramiv(Program, GetProgramParameterName.LinkStatus, &linkStatus);
+            glGetProgramiv(_program, GetProgramParameterName.LinkStatus, &linkStatus);
             CheckLastError();
             if (linkStatus != 1)
             {
-                Span<byte> infoLog = stackalloc byte[4096];
+                byte* infoLog = stackalloc byte[4096];
                 uint bytesWritten;
-                fixed (byte* infoLogPtr = infoLog)
-                {
-                    glGetProgramInfoLog(Program, 4096, &bytesWritten, infoLogPtr);
-                    CheckLastError();
-                }
-                string log = Encoding.UTF8.GetString(infoLog);
+                glGetProgramInfoLog(_program, 4096, &bytesWritten, infoLog);
+                CheckLastError();
+                string log = Encoding.UTF8.GetString(infoLog, (int)bytesWritten);
                 throw new VeldridException($"Error linking GL program: {log}");
             }
 
@@ -374,6 +419,7 @@ namespace Veldrid.OpenGL
             Debug.Assert(_setInfos != null, "EnsureResourcesCreated must be called before accessing resource set information.");
             SetBindingsInfo setInfo = _setInfos[set];
             return setInfo.GetStorageBufferBindingForSlot(slot, out binding);
+
         }
 
         public override void Dispose()
@@ -386,7 +432,7 @@ namespace Veldrid.OpenGL
             if (!_disposed)
             {
                 _disposed = true;
-                glDeleteProgram(Program);
+                glDeleteProgram(_program);
                 CheckLastError();
             }
         }
@@ -444,7 +490,6 @@ namespace Veldrid.OpenGL
         /// Generally, this is the texture unit that the binding will be placed into.
         /// </summary>
         public int RelativeIndex;
-
         /// <summary>
         /// The uniform location of the binding in the shader program.
         /// </summary>
